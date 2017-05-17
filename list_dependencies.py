@@ -54,15 +54,21 @@ while packages:
                 new_packages[child] = count
     packages = new_packages
 
+runcmd( "rm -rf build && mkdir -p build" )
 filetypes = {}
 for pkg,count in processed.iteritems():
-    #print "Processing", pkg
-    retcode,out,err = runcmd( "mkdir -p build &&  ( cd build && apt-get source \"%s\" )" % (pkg,) )
-    if retcode == 0:
-        for root, dirnames, filenames in os.walk( "build" ):
-               for fname in filenames:
-                 fpath = os.path.join(root,fname)
-                 try:
+    print "Downloading ", pkg
+    retcode,out,err = runcmd( "( cd build && apt-get source \"%s\" )" % (pkg,) )
+    if retcode != 0:
+        print >> sys.stderr, "Error downloading and extracting", pkg
+
+
+for root, dirnames, filenames in os.walk( "build" ):
+    if root=='build':
+        continue
+    for fname in filenames:
+        fpath = os.path.join(root,fname)
+        try:
                    retcode, out, err = runcmd( "wc \"%s\" && file \"%s\" " % (fpath,fpath) )
                    wcout,fileout = out.split('\n')[0:2]
                    svec = [ t for t in wcout.strip().split(' ') if t]
@@ -74,10 +80,9 @@ for pkg,count in processed.iteritems():
                    ft = filetypes.get(group) or (0,0,0,0,0)
                    filetypes[group] = (ft[0]+lines,ft[1]+words,ft[2]+chars, ft[3]+1, ft[4]+count)
 
-                 except Exception, e:
+        except Exception, e:
                    print fpath, ":", e
-        #print json.dumps( filetypes, sort_keys=True, indent=4 )
-    runcmd( "rm -rf build" )
+    #runcmd( "rm -rf build" )
 
 with open( 'result.json', 'w' ) as fout:
     print >> fout, json.dumps( filetypes, sort_keys=True, indent=4 )
